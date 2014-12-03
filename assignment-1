@@ -1,0 +1,83 @@
+# Individual Assignment 1, Session 3
+#
+# Assignment Code
+
+# Set working directory and import datafiles
+setwd("C:/Users/E17035/Desktop/R")
+CPS <- read.csv("C:/Users/E17035/Desktop/R/CPS_Report_Card.csv")
+performance <- read.csv("C:/Users/E17035/Desktop/R/performance.csv")
+high <- read.csv("C:/Users/E17035/Desktop/R/HighSchool.csv")
+
+#install libraries
+library(ggplot2)
+library(gcookbook)
+
+# PLOT 1
+# Show relationship between overall rating and school track
+# Grouped Bar Plot  
+svg("GAL_cps1.svg", width=8, height=8)
+counts <- table(CPS$SchoolTrack, CPS$OverallRating)
+barplot(counts, main="School Rating by Scheduling Track",
+        xlab="School Rating", col=c("darkblue","red"),
+        legend = rownames(counts), beside=TRUE, args.legend=list(x="bottomright"))
+dev.off()
+
+# PLOT 2
+# Teacher Attendance vs. Student Attendance
+# Scatterplot with Regression Line
+svg("GAL_cps2.svg", width=8, height=8)
+plot(CPS$TeacherAttendance2012.Percent, CPS$StudentAttendance2012.Percent,main="CPS Teacher Attendance Compared to Student Attendance", 
+     xlab="Teacher Attendance", ylab="Student Attendance",pch=19)
+abline(reg = lm(CPS$StudentAttendance2012.Percent ~ CPS$TeacherAttendance2012.Percent),col="blue")
+dev.off()
+
+# PLOT 3
+# Involved Families vs. Performance
+# Density
+svg("GAL_cps3.svg", width=8, height=8)
+CPS1 <- CPS
+CPS1$InvolvedFamilies <- factor(CPS1$InvolvedFamilies)
+ggplot(CPS1, aes(x=StudentPerformanceReadingandMath, colour=InvolvedFamilies)) + geom_density() +
+  xlab("Student Performance") + ggtitle("Relationship Between Involved Families and Student Performance")
+dev.off()
+
+# PLOT 4
+# Rating vs. Average Days of suspension
+# Density 
+svg("GAL_cps4.svg", width=8, height=8)
+CPS1 <- CPS
+CPS1$OverallRating <- factor(CPS1$OverallRating)
+ggplot(CPS1, aes(x=AverageDaysofSuspension2012, colour=OverallRating)) + geom_density() +
+  xlab("Average Days of Suspension") + ggtitle("Average Days of Suspension by School Rating")
+dev.off()
+
+# PLOT 5
+# Student Performance by Geographic Network
+# Dot plot 
+svg("GAL_cps5.svg", width=8, height=8)
+geo <- performance[1:14, ]
+ggplot(geo, aes(x=AveragePerformance, 
+                y=reorder(GeographicNetwork,AveragePerformance))) + 
+                  geom_point(size=4) + 
+                  xlab("Student Performance") + ylab("Geographic Network") + ggtitle("Student Performance by Geographic Network")
+theme_bw() +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_line(colour="grey60", linetype="dashed"))
+dev.off()
+
+# PLOT 6
+# School Rating vs. ACT Score
+# Boxplot
+svg("GAL_cps6.svg", width=8, height=8)
+ggplot(high, aes(x=Overall.Rating, y=Average.Score.ACT.2012)) + geom_boxplot() +
+  xlab("School Rating") + ylab("Average Student ACT Score") + ggtitle("Average Student ACT Score by School Rating")
+dev.off()
+
+# PLOT 7
+# Average College Enrollment vs. ACT Score
+# Line Graph
+svg("GAL_cps7.svg", width=8, height=8)
+ggplot(high, aes(x=CollegeEnrollment2012, y=Average.Score.ACT.2012)) + geom_line(colour="blue") + geom_point(colour="blue") + 
+  xlab("Average College Enrollment (Percentage)") + ylab("Average ACT Score") + ggtitle("High School Report Card - College Enrollment vs. ACT Scores")
+dev.off()
