@@ -1,0 +1,86 @@
+# Martha Gal
+# PREDICT 490
+# Individual Assignment 5, Session 9
+#
+# Assignment Code
+
+# Set working directory 
+setwd("C:/Users/E17035/Desktop/R")
+
+# R code for making choropleth map of the United States
+
+# state input date flows into object called my.data.frame
+# state names in my.data.frame from the input data must match 
+# state names in gadm.data.frame for the state topology
+
+library(Cairo)  # many output options for data visualization
+library(ggplot2)  # many output options for data visualization
+
+spending <- read.csv("C:/Users/E17035/Desktop/R/2013_federal_spending.csv")
+outlays <- read.csv("C:/Users/E17035/Desktop/R/DefenseOutlays2.csv")
+deaths <- read.csv("C:/Users/E17035/Desktop/R/warDeaths.csv")
+deaths2 <- read.csv("C:/Users/E17035/Desktop/R/warDeaths2.csv")
+militarySpending <- read.csv("C:/Users/E17035/Desktop/R/spendingCategory.csv")
+
+# Theme Clean function that will get rid of the grey background - having trouble getting this to work
+theme_clean <- function(base_size = 12) {
+  require(grid)
+  theme_grey(base_size) %+replace%
+    theme(
+      axis.title = element_blank(),
+      axis.text = element_blank(),
+      panel.background = element_blank(),
+      panel.grid = element_blank(),
+      axis.ticks.length = unit(0, "cm"),
+      axis.ticks.margin = unit(0, "cm"),
+      panel.margin = unit(0, "lines"),
+      plot.margin = unit(c(0,0,0,0), "lines"),
+      complete = TRUE)
+} # end of theme_clean function
+
+# How much of our total spending is military spending?
+#
+# Dataset: spending
+#
+# Horizontal bar with military spendings as a different color
+CairoPNG(file = "plot_federal_spending.png", width = 792, height = 612)
+ggplot(spending, aes(x=reorder(Federal.Spending.Category,Percentage.of.Spending), y=Percentage.of.Spending, fill=Military)) + 
+  geom_bar(stat="identity", , colour="black") + coord_flip() 
+dev.off()
+
+# How has the percentage of our GDP/Budget that we spend on the military changed over time?
+#
+# Dataset: Outlays
+#
+# Line Graph - Show Changes in Budget over time
+workingOutlays <- 
+  subset(outlays, subset = (Type != "GDP"))
+
+workingOutlays <- 
+  subset(workingOutlays, subset = (Year >= 1998))
+CairoPNG(file = "plot_spending.png", width = 792, height = 612)
+ggplot(workingOutlays, aes(x=Year, y=Percentage)) + geom_line(colour="blue", size=1.25) 
+dev.off()
+
+# How Does Military Spending Break Down?
+#
+# Dataset: militarySpending
+#
+# Bar Graph
+CairoPNG(file = "plot_deaths.png", width = 792, height = 612)
+ggplot(militarySpending, aes(x=reorder(Category,Amount), y=Amount)) + 
+  geom_bar(stat="identity", , colour="black")  + coord_flip()
+dev.off()
+
+# What is the rate of soldiers that have died/been wounded?
+#
+# Dataset: deaths
+#
+# Area - deaths with wounded on top - show data chronologically?
+CairoPNG(file = "plot_deaths.png", width = 792, height = 612)
+ggplot(deaths2, aes(x=reorder(War,Order), y=Number, fill=Injury)) + geom_area(aes(group=Injury)) 
+dev.off()
+
+# sources: http://www.whitehouse.gov/2013-taxreceipt
+# sources: https://www.census.gov/compendia/statab/2012/tables/12s0504.pdf
+# sources: http://www.militaryfactory.com/american_war_deaths.asp
