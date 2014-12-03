@@ -1,0 +1,550 @@
+ # Martha Gal
+# PREDICT 490
+# Individual Assignment 3, Session 6
+#
+# Assignment Code
+
+# Set working directory and import datafiles
+setwd("C:/Users/E17035/Desktop/R")
+initialOccupant <- read.table(file = "occ.psv", 
+                                          header = TRUE, sep = "|", 
+                                          comment.char = c(""), stringsAsFactors = FALSE,quote = "")
+initialVehicle <- read.table(file = "veh.psv", 
+                                         header = TRUE, sep = "|", 
+                                         comment.char = "", stringsAsFactors = FALSE, quote = "")
+
+
+
+# Load libraries
+library(ggplot2)  # graphics package... see Chang (2012) and CRAN
+library(lattice)  # graphics package... see CRAN manual
+library(car)  # special regression package... Fox and Weisberg (2011) and CRAN
+library(vcd)  # tools for visualizing categorical data
+library(hexbin) # for scatterplotting data
+library(MMST)
+library(MASS)
+
+
+# define unique vehicle id for occupant data frame 
+# use TVID to refer to test vehicle ID
+# concatenate TSTNO and VEHNO
+initialOccupant$TVID <- 
+  paste(as.character(initialOccupant$TSTNO),
+        as.character(initialOccupant$VEHNO), sep = "V")
+
+# define a factor variable for crash test dummy location in vehicle
+# use nested ifelse statements to do this
+initialOccupant$SEATLOC <- 
+  ifelse((initialOccupant$OCCLOC == "01"),1,
+         ifelse((initialOccupant$OCCLOC == "02"),2,3))
+initialOccupant$SEATLOC <-
+  factor(initialOccupant$SEATLOC, levels = c(1,2,3),
+         labels = c("Front/Driver","Front/Passenger","Other Passenger"))
+
+# create a separate variable for the SQRT of HIC, since that is what we are interested in
+initialOccupant$sqrtHIC <- sqrt(initialOccupant$HIC)
+
+# are there any high-end outliers? 
+with(initialOccupant, sort(HIC, decreasing = TRUE)[1:250])  
+
+# it appears that HIC = 99999 or 9999 are missing data codes 
+# delete observations with missing data for the response 
+# because these are of little use in building predictive models
+workingOccupant <- 
+  subset(initialOccupant, subset = (HIC < 9999))
+
+# View histogram of sqrt of HIC
+pdf(file = "GAL_sqrtHIC.pdf", width = 11, height = 8.5)
+hist(workingOccupant$sqrtHIC)
+dev.off()
+
+# exclude records of Occupants who weigh 999 kilograms - missing data
+# removing this as later in the EDA I saw little relationship between weight and sqrtHIC
+#workingOccupant <- 
+#  subset(workingOccupant, subset = (OCCWT < 100))
+
+# exclude records of Occupants who are 9,999 millimeters tall
+# removing this as later in the EDA I saw little relationship between weight and sqrtHIC
+#workingOccupant <- 
+#  subset(workingOccupant, subset = (OCCHT < 3000))
+
+# it appears that vehicle speed coded at 1000 is a problem
+# additional missing data perhaps
+workingVehicle <- subset(initialVehicle, subset = (VEHSPD < 200))
+
+# for vehicle test weights there appear to be missing data values
+# of 99999... also there are few very very large values to be ignored
+# also there are many values of zero on the database
+# let us keep within min 500 (1102 lb) and max 3500 kg (7716 lb)
+workingVehicle <- 
+  subset(workingVehicle, subset = (VEHTWT <= 3500))  
+workingVehicle <- 
+  subset(workingVehicle, subset = (VEHTWT >= 500))
+
+# define unique vehicle id for vehicle data frame 
+# again use TVID to refer to test vehicle ID
+workingVehicle$TVID <- 
+  paste(as.character(workingVehicle$TSTNO),
+        as.character(workingVehicle$VEHNO),sep = "V")
+
+# we want to use TVID to merge the two data frames
+# note that TSTNO and VEHNO appear in both frames
+# so we will delete these from the initial.vehicle.data.frame
+# prior to merging
+workingVehicle <- 
+  workingVehicle[, names(workingVehicle)[3:ncol(workingVehicle)]]
+
+# check to see that TVID is now the only variable 
+# in common between the two working data frames
+intersect(names(workingOccupant),names(workingVehicle))
+
+# merge the two data frames with all.x =  to keep all occupant observations 
+totalCrash <- 
+  merge(workingOccupant, workingVehicle,
+        by = c("TVID"), all.x = TRUE)
+
+# identify TVIDs that have observations in both data frames
+commonObservationList <- 
+  intersect(unique(workingOccupant$TVID), 
+            unique(workingVehicle$TVID))
+
+# select the subset of crash observations having data 
+# from both occupant and vehicle tables
+workingCrash <- subset(totalCrash, subset = (TVID %in% commonObservationList))
+
+
+# Conduct additional EDA
+# Remove unnecessary columns
+#
+# Remove columns from the data frame that are duplicative
+# NOTE: I know that this is not strictly necessary; I'm just trying to simplify things for myself
+# Each of these also have description fields that will be used in the regression rather than these coded fields
+workingCrash$OCCSEX <- NULL
+workingCrash$MTHCAL<- NULL
+workingCrash$OCCLOC <- NULL
+workingCrash$OCCTYP<- NULL
+workingCrash$DUMSIZ <- NULL
+workingCrash$DUMDSC <- NULL
+workingCrash$CNTRH1 <- NULL
+workingCrash$SEPOSN <- NULL
+workingCrash$CNTRH2 <- NULL
+workingCrash$CNTRC1 <- NULL
+workingCrash$CNTRC2 <- NULL
+workingCrash$CNTRL1 <- NULL
+workingCrash$CTRL2 <- NULL
+workingCrash$MAKE <- NULL
+workingCrash$MODEL <- NULL
+workingCrash$BODY <- NULL
+workingCrash$ENGINE <- NULL
+workingCrash$TRANSM <- NULL
+workingCrash$STRSEP <- NULL
+workingCrash$COLMEC <- NULL
+workingCrash$APLENG <- NULL
+workingCrash$SILENG <- NULL
+workingCrash$BMPENG <- NULL
+workingCrash$MODDSC <- NULL
+workingCrash$MODINDD <- NULL
+#
+# Removing measurements of dummies to positions within the car
+# Not of interest in this analysis as they are too scientific 
+# A person getting in a car is unlikely to measure the distance between their head and the windshield
+workingCrash$HH <- NULL
+workingCrash$HW <- NULL
+workingCrash$HR <- NULL
+workingCrash$HS <- NULL
+workingCrash$CD <- NULL
+workingCrash$CS <- NULL
+workingCrash$AD <- NULL
+workingCrash$HD <- NULL
+workingCrash$KD <- NULL
+workingCrash$HB <- NULL
+workingCrash$NB <- NULL
+workingCrash$CB <- NULL
+workingCrash$KB <- NULL
+#
+# Remove Post-test measurement data - not of interest in this analysis
+# Our interest is only in HIC
+workingCrash$AX1 <- NULL
+workingCrash$AX2 <- NULL
+workingCrash$AX3 <- NULL
+workingCrash$AX4 <- NULL
+workingCrash$AX5 <- NULL
+workingCrash$AX6 <- NULL
+workingCrash$AX7 <- NULL
+workingCrash$AX8 <- NULL
+workingCrash$AX9 <- NULL
+workingCrash$AX10 <- NULL
+workingCrash$AX11 <- NULL
+workingCrash$AX12 <- NULL
+workingCrash$AX13 <- NULL
+workingCrash$AX14 <- NULL
+workingCrash$AX15 <- NULL
+workingCrash$AX16 <- NULL
+workingCrash$AX17 <- NULL
+workingCrash$AX18 <- NULL
+workingCrash$AX19 <- NULL
+workingCrash$AX20 <- NULL
+workingCrash$AX21 <- NULL
+#
+# Remove Pretest measurement data - not of interest in this analysis - too technical
+workingCrash$BX1 <- NULL
+workingCrash$BX2 <- NULL
+workingCrash$BX3 <- NULL
+workingCrash$BX4 <- NULL
+workingCrash$BX5 <- NULL
+workingCrash$BX6 <- NULL
+workingCrash$BX7 <- NULL
+workingCrash$BX8 <- NULL
+workingCrash$BX9 <- NULL
+workingCrash$BX10 <- NULL
+workingCrash$BX11 <- NULL
+workingCrash$BX12 <- NULL
+workingCrash$BX13 <- NULL
+workingCrash$BX14 <- NULL
+workingCrash$BX15 <- NULL
+workingCrash$BX16 <- NULL
+workingCrash$BX17 <- NULL
+workingCrash$BX18 <- NULL
+workingCrash$BX19 <- NULL
+workingCrash$BX20 <- NULL
+workingCrash$BX21 <- NULL
+#
+# Remove Damage profile distances - not of interest in this analysis
+# Our focus is on HIC
+workingCrash$DPD1 <- NULL
+workingCrash$DPD2 <- NULL
+workingCrash$DPD3 <- NULL
+workingCrash$DPD4 <- NULL
+workingCrash$DPD5 <- NULL
+workingCrash$DPD6 <- NULL
+workingCrash$VDI <- NULL
+workingCrash$LENCNT <- NULL
+workingCrash$DAMDST <- NULL
+workingCrash$CRHDST <- NULL
+workingCrash$VEHOR <- NULL
+#
+# Remove Vehicle Identification number - No predictive value
+workingCrash$VIN <- NULL
+#Remove Text/Comment Fields that are not conducive to predictive modeling
+workingCrash$VEHCOM <- NULL
+workingCrash$OCCCOM <- NULL
+# Not sure what these are
+workingCrash$APLENGD <- NULL
+workingCrash$SILENGD <- NULL
+workingCrash$BMPENGD <- NULL
+workingCrash$CARANG<- NULL
+workingCrash$CRBANG <- NULL # Crabbed Angle - Too technical
+workingCrash$MODIND <- NULL # Vehicle Modification Indicator - Too technical
+
+
+# Additional EDA
+
+
+#
+# PDOF - Principal direction of force/Angle at which the car is hit
+# All values are between 0-360, as they should be
+unique(workingCrash$PDOF)
+# We can see a relationship in that the middle values (i.e. a rear-end collision) have lower HIC rates
+pdf(file = "GAL_PDOF.pdf", width = 11, height = 8.5)
+ggplot.object <- ggplot(data = workingCrash) +
+  aes(x = PDOF, y = sqrtHIC) + 
+  geom_point(color = "darkblue", shape = 1) +
+  labs(x = "Principle Direction of Force") +
+  labs(y = "Severity of Head Injury") +
+  ggtitle("Direction of Force and Injuries")
+print(ggplot.object)
+dev.off()
+
+#
+# VEHSPD - Vehicle Speed
+# Middle speeds seem to have worse head injuries than high speeds
+ggplot.object <- ggplot(data = workingCrash) +
+  aes(x = VEHSPD, y = sqrtHIC) + 
+  geom_point(color = "darkblue", shape = 1) +
+  labs(x = "Vehicle Speed") +
+  labs(y = "Severity of Head Injury") +
+  ggtitle("Vehicle Speed and Injuries")
+print(ggplot.object)
+
+# None of the following Vehicle measurement variables seem to have much relationship with sqrtHIC
+# because so many of the values are concentrated in the middle
+plot(workingCrash$VEHWID, workingCrash$sqrtHIC)
+plot(workingCrash$VEHCG, workingCrash$sqrtHIC)
+plot(workingCrash$VEHLEN, workingCrash$sqrtHIC)
+plot(workingCrash$WHLBAS, workingCrash$sqrtHIC)
+# remove these
+workingCrash$VEHWID <- NULL
+workingCrash$VEHCG <- NULL
+workingCrash$VEHLEN <- NULL
+workingCrash$WHLBAS <- NULL
+
+# VEHTWT - Vehicle Weight
+# Lower weight cars tend to have worse head injuries
+ggplot.object <- ggplot(data = workingCrash) +
+  aes(x = VEHTWT, y = sqrtHIC) + 
+  geom_point(color = "darkblue", shape = 1) +
+  labs(x = "Vehicle Weight") +
+  labs(y = "Severity of Head Injury") +
+  ggtitle("Vehicle Weight and Injuries")
+print(ggplot.object)
+
+# Remove details of injury/load measurements (other than HIC)
+# These are out of scope in this study
+workingCrash$T1 <- NULL
+workingCrash$T2 <- NULL
+workingCrash$CLIP3M <- NULL
+workingCrash$LFEM <- NULL
+workingCrash$RFEM <- NULL
+workingCrash$CSI <- NULL
+workingCrash$LBELT <- NULL
+workingCrash$SBELT <- NULL
+workingCrash$TTI <- NULL
+workingCrash$PELVG <- NULL
+
+# OCCWT - Occupant Weight
+# TBD
+unique(workingCrash$OCCWT)
+# I don't see much of a relationship between weight and sqrtHIC, probably because so many are values are 0
+ggplot.object <- ggplot(data = workingCrash) +
+  aes(x = OCCWT, y = sqrtHIC) + 
+  geom_point(color = "darkblue", shape = 1) +
+  labs(x = "Occupant Weight") +
+  labs(y = "Severity of Head Injury") +
+  ggtitle("Occupant Weight and Injuries")
+print(ggplot.object)
+
+# exclude this
+workingCrash$OCCWT <- NULL
+
+unique(workingCrash$OCCHT)
+# I don't see much of a relationship between height and sqrtHIC, probably because so many are values are 0
+ggplot.object <- ggplot(data = workingCrash) +
+  aes(x = OCCHT, y = sqrtHIC) + 
+  geom_point(color = "darkblue", shape = 1) +
+  labs(x = "Occupant Height") +
+  labs(y = "Severity of Head Injury") +
+  ggtitle("Occupant Height and Injuries")
+print(ggplot.object)
+
+#exclude this
+workingCrash$OCCHT <- NULL
+
+
+
+# Engine Displacement
+unique(workingCrash$ENGDSP)
+# exclude 99s
+Engine <- 
+  subset(workingCrash, subset = (ENGDSP < 99))
+# still don't see much of a relationship
+ggplot.object <- ggplot(data = Engine) +
+  aes(x = ENGDSP, y = sqrtHIC) + 
+  geom_point(color = "darkblue", shape = 1) +
+  labs(x = "Occupant Height") +
+  labs(y = "Severity of Head Injury") +
+  ggtitle("Occupant Height and Injuries")
+print(ggplot.object)
+# not much of a relationship, excluding this
+workingCrash$ENGDSP <- NULL
+
+# lattice of scatter plots for relationship between vehicle speed and injuries
+# conditioning on the seat location of the crash test dummy
+# for striking and target vehicles
+# see relationship between head injuries and seat location
+print(xyplot(data = workingCrash, cex = 0.5, 
+             sqrt(HIC) ~ VEHSPD | SEATLOC,
+             aspect = 1,
+             layout = c(3,1),
+             type = c("p","g"),
+             ylab = "Severity of Head Injury",
+             xlab = "Speed Before Impact (km/hr)"))
+
+# Injuries seem to be worse in 3 door hatchbacks and 4 door sedans
+# include BODYD
+pdf(file = "GAL_BODY_TYPE.pdf", width = 11, height = 8.5)
+print(xyplot(data = workingCrash, cex = 0.5, 
+             sqrt(HIC) ~ VEHSPD | BODYD,
+             aspect = 1,
+             layout = c(3,1),
+             type = c("p","g"),
+             ylab = "Severity of Head Injury",
+             xlab = "Speed Before Impact (km/hr)"))
+dev.off()
+
+# SEX
+# Don't include
+print(xyplot(data = workingCrash, cex = 0.5, 
+             sqrt(HIC) ~ VEHSPD | OCCSEXD,
+             aspect = 1,
+             layout = c(3,1),
+             type = c("p","g"),
+             ylab = "Severity of Head Injury",
+             xlab = "Speed Before Impact (km/hr)"))
+
+#exclude this
+workingCrash$OCCSEX <- NULL
+
+
+# Injuries seem to be worse in 4 CYLINDER TRANSVERSE FRONT
+# include ENGINED
+pdf(file = "GAL_ENGINE_TYPE.pdf", width = 11, height = 8.5)
+print(xyplot(data = workingCrash, cex = 0.5, 
+             sqrt(HIC) ~ VEHSPD | ENGINED,
+             aspect = 1,
+             layout = c(3,1),
+             type = c("p","g"),
+             ylab = "Severity of Head Injury",
+             xlab = "Speed Before Impact (km/hr)"))
+dev.off()
+
+
+
+# remove MAKED
+print(xyplot(data = workingCrash, cex = 0.5, 
+             sqrt(HIC) ~ VEHSPD | MODELD,
+             aspect = 1,
+             layout = c(3,1),
+             type = c("p","g"),
+             ylab = "Severity of Head Injury",
+             xlab = "Speed Before Impact (km/hr)"))
+
+
+#exclude this
+workingCrash$MAKED <- NULL
+workingCrash$MODELD <- NULL
+
+#Remove variables about dummies
+workingCrash$OCCTYPD <- NULL
+workingCrash$OCCAGE <- NULL
+workingCrash$OCCSEXD <- NULL
+workingCrash$MTHCALD <- NULL
+workingCrash$DUMSIZD <- NULL
+workingCrash$DUMMAN <- NULL
+workingCrash$DUMMOD <- NULL
+
+# scatterplot matrix of continuous variables
+pdf(file = "GAL_scatterplot.pdf", width = 11, height = 8.5)
+scatterplotMatrix(~ sqrtHIC + VEHSPD + VEHTWT + PDOF, cex = 0.5,
+                  data = workingCrash)
+dev.off()
+
+
+
+# Build initial model with 7 explanatory variables based on EDA
+# Explanatory variables include SEATLOC, YEAR, BODY, ENGINE, VEH WEIGHT, VEH SPEED, and PDOF
+crashModel <- lm(sqrtHIC ~ SEATLOC + YEAR + BODYD + ENGINED + VEHTWT + VEHSPD + PDOF, data=na.omit(workingCrash))
+
+# Look at results
+print(crashModel)
+summary(crashModel)
+# Model suffers from heteroskedasity, among other issues
+# standard R regression diagnostics routed to pdf file
+pdf(file = "GAL_Crash Model Residuals.pdf", width = 11, height = 8.5)
+par(mfrow = c(2,2))  # four plots on one page
+plot(crashModel)
+par(mfrow = c(1,1))  # back to one plot per page
+dev.off()
+# Confidence intervals
+confint(crashModel)
+# ANOVA - All variables significant
+Anova(crashModel)
+# VIFs look okay
+vif(crashModel)
+
+# Try a stepwise regression just for fun
+# Add transmission variable
+
+# stepwise regression using MASS stepAIC Venables and Ripley (2002, 177-178)
+# this program goes from the upper model to the lower model
+# dropping one term at a time based upon Akaike's AIC
+
+upper.lm.model <- lm(sqrtHIC ~ SEATLOC + YEAR + BODYD + ENGINED + TRANSMD + VEHTWT + VEHSPD + PDOF, data=na.omit(workingCrash))
+lower.lm.model <- lm(sqrtHIC ~ 1,data=na.omit(workingCrash)) # intercept only model
+stepwise.lm.model <- stepAIC(upper.lm.model,lower.lm.model,trace=T)
+
+print(stepwise.lm.model)
+summary(stepwise.lm.model)
+confint(stepwise.lm.model) 
+Anova(stepwise.lm.model)
+vif(stepwise.lm.model) 
+# standard R regression diagnostics routed to pdf file
+pdf(file = "GAL_Stepwise Model Residuals.pdf", width = 11, height = 8.5)
+par(mfrow = c(2,2))  # four plots on one page
+plot(stepwise.lm.model)
+par(mfrow = c(1,1))  # back to one plot per page
+dev.off()
+
+# Will evaluate crashModel Diagnostics further
+# Residuals against each variable
+pdf(file = "GAL_Residual_Plots.pdf", width = 11, height = 8.5)
+residualPlots(crashModel)
+dev.off()
+
+# Marginal Plots
+pdf(file = "GAL_Marginal_Model.pdf", width = 11, height = 8.5)
+marginalModelPlots(crashModel)
+dev.off()
+
+# Cook's D plot
+pdf(file = "GAL_influencePlots.pdf", width = 11, height = 8.5)
+influenceIndexPlot(crashModel)
+dev.off()
+
+# Bubble Plot for Influencers
+pdf(file = "GAL_bubblePlots.pdf", width = 11, height = 8.5)
+influencePlot(crashModel, id.n=3)
+dev.off()
+
+## QQ Plot
+pdf(file = "GAL_qqPlots.pdf", width = 11, height = 8.5)
+qqPlot(crashModel, id.n=3)
+dev.off()
+
+# Added Variable Plots
+pdf(file = "GAL_avPlots.pdf", width = 11, height = 8.5)
+avPlots(crashModel, id.n=2, id.cex=0.6)
+dev.off()
+dev.off()
+dev.off()
+dev.off()
+dev.off()
+dev.off()
+dev.off()
+
+
+# Work with Restraint File - Didn't have time to finish this
+# The goal was to pull in restraint data and append to the working Crash file
+
+# Read in file
+#  initialRestraint <- read.table(file = "rest.psv", 
+#                               header = TRUE, sep = "|", 
+#                               comment.char = "", stringsAsFactors = FALSE, quote = "")
+
+# View(initialRestraint)
+
+# Work with Restraint table
+# add TVOID onto initialRestraint table
+# intent is to join initialRestraint to workingOccupant
+# initialRestraint$TVOID <- 
+#  paste(as.character(initialRestraint$TSTNO),
+#        as.character(initialRestraint$VEHNO),
+#        as.character(initialRestraint$OCCLOC),sep = "V")
+
+# add TVOID onto workingOccupant table
+# workingOccupant$TVOID <- 
+#  paste(as.character(workingOccupant$TSTNO),
+#        as.character(workingOccupant$VEHNO),
+#        as.character(workingOccupant$OCCLOC),sep = "V")
+
+# The following two things are my sad attempt at a loop
+# for (i in workingOccupant){
+#  if initialRestraint$RSTTYP = "3PT" where workingOccupant$TVOID = initialRestraint$TVOID
+#  then workingOccupant.3PT = 1 else 0
+
+# loop attempt
+# for (rsttyp='3PT')
+# add TVOID onto workingOccupant table
+#  totalCrash$TVOID <- 
+#    paste(as.character(totalCrash$TSTNO),
+#          as.character(totalCrash$VEHNO),
+#          as.character(totalCrash$OCCLOC),sep = "V")
