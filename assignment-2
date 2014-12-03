@@ -1,0 +1,855 @@
+# Martha Gal
+# PREDICT 490
+# Individual Assignment 2, Session 4
+#
+# Assignment Code
+
+# Set working directory and import datafiles
+setwd("C:/Users/E17035/Desktop/R")
+facebook <- read.csv("C:/Users/E17035/Desktop/R/Omnibus_Dec_2012_csv.csv")
+View(facebook)
+
+#load libraries
+library(ggplot2)  # tools for visualizing data
+library(vcd)  # tools for visualizing categorical data
+
+# DATASET DESCRIPTION AND PURPOSE OF EDA
+#
+# This dataset includes data about internet usage and Facebook usage. I will explore the dataset via an
+# EDA to determine what characteristics are likely to be correlated with internet use and Facebook use,
+# as well as the impact of Facebook on user's lives and the amount of time that is spent on Facebook. 
+#
+#
+# Define Variables of Interest
+#
+# Internet/Facebook Usage variables that I am interested in exploring are:
+#
+# INTUSE - Internet User
+# PIAL2 - Facebook User
+# PIAL8 - Impact of Facebook on Your Life Overall
+# PIAL9 - Time Spent on Facebook in the Past Year (Relative Change)
+# PIAL10 - Expected Time Spent on Facebook in the Next Year (Relative Change)
+# PIAL3 - Former Facebook User Status
+# PIAL5 - Possible Future Facebook User
+# PIAL6 - Break from Facebook User Status
+#
+# Demographic variables that I am interested in exploring are:
+#
+# SEX - The sex of the respondent
+# AGE - Age of the respondent
+# EMPLOY - Employment status of the respondent
+# INCOME - Income of the respondent
+# RACE - Race of the respondent
+# PAR - Parenting status of the respondent
+# EDUC2 - Educational status achieved by the respondent
+#
+# Free-from text fields are included in the EDA:
+# PIAL4 - What made you stop using Facebook?
+# PIAL7 - What made you decide to take a break from Facebook?
+#
+# I excluded some variables from the analysis. These included PIAL1, HISP, EMLOCC, and INTMOB, as I 
+# thought that other variables covered these data points and therefore they were not necessary.
+#
+# Generally speaking, this analysis will first look at the overall distribution for each variable. Then,
+# I will compare the Facebook variables with the demographic variables to look for correlation. Finally,
+# I will compare some of the Facebook variables with each other, and then review the free-form text fields.
+
+
+
+# EDA for Continuous Variables
+#
+# Age is the only continuous variable
+#
+# Basic Age Histogram - All Respondents
+#
+# Create histogram
+ggplot.object <- ggplot(data = facebook) +
+  aes(x = age) + 
+  geom_histogram(binwidth = 10, colour = "black", fill = "white", origin = 10) +
+  labs(x = "Age") +
+  labs(y = "Number of Respondents") +
+  ggtitle("Age of Respondents")
+# Print histogram to screen
+print(ggplot.object)
+
+
+# Visualizations of Age versus each Facebook Variable
+#
+#
+# Density Plot of Age of Internet Users versus Non-Internet Users
+#
+# Define factor variable for Internet User
+facebook$internetUser <- ifelse((facebook$intuse == 1),2,1)
+facebookWorking <- facebook
+facebookWorking$internetUser <- factor(facebook$internetUser, levels = c(1,2), labels = c("Non-User","User"))
+#
+#Create density plot
+ggplot(facebookWorking, aes(x=age, colour=internetUser)) + geom_density() +
+  xlab("Age") + ggtitle("Relationship Between Age and Internet Usage")
+
+
+# Density Plot of Age of Facebook Users versus Non-Facebook Users
+#
+# Subset population to internet users only
+intUsers <- subset(facebookWorking, subset = (intuse == 1))
+#
+# Define factor variable for Facebook User
+intUsers$facebookUser <- ifelse((intUsers$pial2 == 1),2,1)
+intUsers$facebookUser <- factor(intUsers$facebookUser, levels = c(1,2), labels = c("Non-User","User"))
+#
+# Create density plot and output to PDF
+pdf(file = "GAL_RelationshipBetweenAgeandFacebookUsage.pdf", width = 11, height = 8.5)
+ggplot(intUsers, aes(x=age, colour=facebookUser)) + geom_density() +
+  xlab("Age") + ggtitle("Relationship Between Age and Facebook Usage")
+dev.off()
+
+# Density Plot of Age vs. Importance of Facebook
+#
+# Subset population to Facebook users only
+facebookUsers <- subset(facebookWorking, subset = (pial2 == 1))
+#
+# Define factor variable for Importance of Facebook
+facebookUsers$facebookImpact <- factor(facebookUsers$pial8, levels = c(1,2,3,4), labels = c("More","Less","Same","N/A"))
+#
+# Create density plot and create a PDF
+pdf(file = "GAL_RelationshipBetweenAgeandImportanceOfFacebook.pdf", width = 11, height = 8.5)
+ggplot(facebookUsers, aes(x=age, colour=facebookImpact)) + geom_density() +
+  xlab("Age") + ggtitle("Relationship Between Age and Importance of Facebook")
+dev.off()
+
+# Density Plot of Age vs. Facebook Time
+#
+# Define factor variable for Facebook Time
+# Use facebook users sub-set defined above
+facebookUsers$facebookTime <- factor(facebookUsers$pial9, levels = c(1,2,3), labels = c("More","Less","Same"))
+#
+# Create density plot
+ggplot(facebookUsers, aes(x=age, colour=facebookTime)) + geom_density() +
+  xlab("Age") + ggtitle("Relationship Between Age and Time Spent on Facebook")
+
+# Density Plot of Age vs. Projected Facebook Time
+#
+# Define factor variable for Facebook Projected Time
+# Use facebook users sub-set defined above
+facebookUsers$facebookFuture <- factor(facebookUsers$pial10, levels = c(1,2,3), labels = c("More","Less","Same"))
+#
+# Create density plot
+ggplot(facebookUsers, aes(x=age, colour=facebookFuture)) + geom_density() +
+  xlab("Age") + ggtitle("Relationship Between Age and Projected Time Spent on Facebook")
+
+# Density Plot of Age vs. Former Facebook User
+#
+# Define factor variable for Former Facebook Users
+# Use internet users sub-set defined above to include non-Facebook users
+intUsers$facebookFormer <- factor(intUsers$pial3, levels = c(1,2), labels = c("User","Non-User"))
+#
+# Create density plot
+ggplot(intUsers, aes(x=age, colour=facebookFormer)) + geom_density() +
+  xlab("Age") + ggtitle("Relationship Between Age and Former Facebook Users")
+
+# Density Plot of Age vs. Possible Future Facebook User
+#
+# Define factor variable for Possible Future Facebook User
+# Use internet users sub-set defined above to include non-Facebook users
+intUsers$facebookFuture <- factor(intUsers$pial5, levels = c(1,2), labels = c("Interested","Not Interested"))
+#
+# Create density plot
+ggplot(intUsers, aes(x=age, colour=facebookFuture)) + geom_density() +
+  xlab("Age") + ggtitle("Relationship Between Age and Possible Future Facebook Users")
+
+# Density Plot of Age vs. Facebook Breaks
+#
+# Define factor variable for Facebook Breaks
+# Use internet users sub-set defined above
+facebookUsers$facebookBreaks <- factor(facebookUsers$pial6, levels = c(1,2), labels = c("Break","No Break"))
+#
+# Create density plot
+ggplot(intUsers, aes(x=age, colour=facebookBreaks)) + geom_density() +
+  xlab("Age") + ggtitle("Relationship Between Age and People Who Took Facebook Breaks")
+
+
+
+
+# EDA for Categorical Variables
+#
+#
+# Change Categorical Variables to Factors
+#
+# This will allow graphing of categorical variables versus other categorical variables.
+#
+# NOTE: Some of these variables were changed already to factors above; I recognize that it is not necessary to 
+# repeat this step. Because I was learning as I went, I used different names in the graphs below and those above, 
+# and I elected to keep the reinitialization of the factors to the "new" names rather than to re-do everything with 
+# consistent names and only initialize the factors once. Essentially, I am starting over here as far as the 
+# variables and data subsets are concerned. In the future, I will not duplicate this work.
+#
+# Internet User
+facebookWorking <- facebook
+facebookWorking$internetUser <- ifelse((facebook$intuse == 1),2,1)
+facebookWorking$internetUser <- factor(facebookWorking$internetUser, levels = c(1,2), labels = c("Non-User","User"))
+
+# Facebook User
+facebookWorking$facebookUser <- ifelse((facebook$pial2 == 1),2,1)
+facebookWorking$facebookUser <- factor(facebookWorking$facebookUser, levels = c(1,2), labels = c("Non-User","User"))
+
+# Facebook Importance
+facebookWorking$facebookImpt <- factor(facebookWorking$pial8, levels = c(1,2,3,4), labels = c("More","Less","Same","NA"))
+
+# Facebook Past Time
+facebookWorking$facebookPast <- factor(facebookWorking$pial9, levels = c(1,2,3,4), labels = c("More","Less","Same","NA"))
+
+# Facebook Future Time
+facebookWorking$facebookFuture <- factor(facebookWorking$pial10, levels = c(1,2,3), labels = c("More","Less","Same"))
+
+# Sex
+facebookWorking$sex <- factor(facebook$sex, levels = c(1,2), labels = c("Male","Female"))
+
+# Employment
+facebookWorking$employ <- factor(facebook$employ, levels = c(1,2,3), labels = c("Full Time","Part Time", "Unemployed"))
+
+# Income
+facebookWorking$income <- factor(facebook$inc, levels = c(1,2,3,4,5,6,7,8,9), labels = c("< 10","10-20","20-30","30-40","40-50","50-75","75-100","100-150","150+"))
+
+# Race
+facebookWorking$race <- factor(facebook$race, levels = c(1,2,3,4,5), labels = c("White","Black","Asian","Mixed Race", "Native American"))
+
+# Parent of a Child Under 18
+facebookWorking$parent <- factor(facebook$par, levels = c(1,2), labels = c("Parent","Non-Parent"))
+
+# Education
+facebookWorking$edu <- factor(facebook$educ2, levels = c(1,2,3,4,5,6,7,8), labels = c("< High","HS Incomplete","HS Grad","Some College","Associate","Bachelors","Some postgrad","Graduate degree"))
+
+# Former Facebook User
+facebookWorking$formerFacebookUser <- factor(facebookWorking$pial3, levels = c(1,2), labels = c("Former User","Non-User"))
+
+# Possible Future Facebook User
+facebookWorking$futureFacebookUser <- factor(facebookWorking$pial5, levels = c(1,2), labels = c("Interested","Not Interested"))
+
+# Took a Facebook Break
+facebookWorking$facebookBreak <- factor(facebookWorking$pial6, levels = c(1,2), labels = c("Break","No Break"))
+
+# Define Internet user data frame
+# To be used by some graphs that look only at internet users (since facebook users must be internet users)
+working <- subset(facebookWorking, subset = (intuse == 1))
+
+
+# Basic Count Visualizations of Categorical Variables
+#
+# This was done to show general distributions of each categorical variable.
+
+# Internet User
+counts <- table(facebookWorking$internetUser)
+barplot(counts)
+
+# Facebook User
+counts <- table(facebookWorking$facebookUser)
+barplot(counts)
+
+# Facebook Important
+counts <- table(facebookWorking$facebookImpt)
+barplot(counts)
+
+# Facebook Past Time - Bar Graph of Counts
+counts <- table(facebookWorking$facebookPast)
+barplot(counts)
+
+# Facebook Future Time - Bar Graph of Counts
+counts <- table(facebookWorking$facebookFuture)
+barplot(counts)
+
+# Sex - Bar Graph of Counts
+counts <- table(facebookWorking$sex)
+barplot(counts)
+
+# Employment - Bar Graph of Counts
+counts <- table(facebookWorking$employ)
+barplot(counts)
+
+# Income - Bar Graph of Counts
+counts <- table(facebookWorking$income)
+barplot(counts)
+
+# Race - Bar Graph of Counts
+counts <- table(facebookWorking$race)
+barplot(counts)
+
+# Parent of a Child Under 18 - Bar Graph of Counts
+counts <- table(facebookWorking$parent)
+barplot(counts)
+
+# Education Level - Bar Graph of Counts
+counts <- table(facebookWorking$edu)
+barplot(counts)
+
+# Former Facebook User - Bar Graph of Counts
+counts <- table(facebookWorking$formerFacebookUser)
+barplot(counts)
+
+# Interested in Being a Facebook User - Bar Graph of Counts
+counts <- table(facebookWorking$futureFacebookUser)
+barplot(counts)
+
+# Took a Facebook Break - Bar Graph of Counts
+counts <- table(facebookWorking$facebookBreak)
+barplot(counts)
+
+
+# Comparision of Demographic Variables to Facebook Variables
+#
+# This was done to show possible relationships between the Facebook variables and demographic traits.
+
+# Categorical Variable: Sex
+#
+# Sex by Internet Users
+# Data set includes all respondents
+mosaic( ~ sex + internetUser, data = facebookWorking,
+        labeling_args = list(set_varnames = c(sex = "", internetUser = "Internet Usage")),
+        highlighting = "internetUser",
+        highlighting_fill = c("cornsilk","violet"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Sex by Facebook Users
+# Data set includes only internet users
+pdf(file = "GAL_RelationshipBetweenSexandFacebbokUsage.pdf", width = 11, height = 8.5)
+mosaic( ~ sex + facebookUser, data = working,
+        labeling_args = list(set_varnames = c(sex = "", facebookUser = "Facebook Usage")),
+        highlighting = "facebookUser",
+        highlighting_fill = c("cornsilk","violet"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+dev.off()
+
+# Sex By Facebook Importance
+# Data set includes only internet users
+mosaic( ~ sex + facebookImpt, data = working,
+        labeling_args = list(set_varnames = c(sex = "", facebookImpt = "Facebook Usage")),
+        highlighting = "facebookImpt",
+        highlighting_fill = c("blue","green","purple","gray"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Sex by Facebook Time Spent in the Past Year
+# Data set includes only internet users
+mosaic( ~ sex + facebookPast, data = working,
+        labeling_args = list(set_varnames = c(sex = "", facebookPast = "Facebook Time in the Last Year")),
+        highlighting = "facebookPast",
+        highlighting_fill = c("blue","green","purple","gray"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Sex by Facebook Time Projected for Next Year
+# Data set includes only internet users
+mosaic( ~ sex + facebookFuture, data = working,
+        labeling_args = list(set_varnames = c(sex = "", facebookFuture = "Facebook Expected Time in the Next Year")),
+        highlighting = "facebookFuture",
+        highlighting_fill = c("blue","green","purple"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Sex by Former Facebook User 
+# Data set includes only internet users
+mosaic( ~ sex + formerFacebookUser, data = working,
+        labeling_args = list(set_varnames = c(sex = "", formerFacebookUser = "Former Facebook Users")),
+        highlighting = "formerFacebookUser",
+        highlighting_fill = c("blue","green"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Sex by Possible Future Facebook User 
+# Data set includes only internet users
+mosaic( ~ sex + futureFacebookUser, data = working,
+        labeling_args = list(set_varnames = c(sex = "", futureFacebookUser = "Possible Future Facebook Users")),
+        highlighting = "futureFacebookUser",
+        highlighting_fill = c("blue","green"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Sex by Took a Facebook Break 
+# Data set includes only internet users
+mosaic( ~ sex + facebookBreak, data = working,
+        labeling_args = list(set_varnames = c(sex = "", facebookBreak = "Took a Facebook Break")),
+        highlighting = "facebookBreak",
+        highlighting_fill = c("blue","green"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Categorical Variable: Employ
+#
+# Employ by Internet Users
+# Data set includes all respondents
+mosaic( ~ employ + internetUser, data = facebookWorking,
+        labeling_args = list(set_varnames = c(employ = "", internetUser = "Internet Usage")),
+        highlighting = "internetUser",
+        highlighting_fill = c("cornsilk","violet"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Employ by Facebook Users
+# Data set includes only internet users
+mosaic( ~ employ + facebookUser, data = working,
+        labeling_args = list(set_varnames = c(employ = "", facebookUser = "Facebook Usage")),
+        highlighting = "facebookUser",
+        highlighting_fill = c("cornsilk","violet"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Employ By Facebook Importance
+# Data set includes only internet users
+pdf(file = "GAL_RelationshipBetweenEmploymentandFacebookImportance.pdf", width = 11, height = 8.5)
+mosaic( ~ employ + facebookImpt, data = working,
+        labeling_args = list(set_varnames = c(employ = "", facebookImpt = "Facebook Usage")),
+        highlighting = "facebookImpt",
+        highlighting_fill = c("blue","green","purple","gray"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+dev.off()
+
+# Employ by Facebook Time Spent in the Past Year
+# Data set includes only internet users
+mosaic( ~ employ + facebookPast, data = working,
+        labeling_args = list(set_varnames = c(employ = "", facebookPast = "Facebook Time in the Last Year")),
+        highlighting = "facebookPast",
+        highlighting_fill = c("blue","green","purple","gray"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Employ by Facebook Time Projected for Next Year
+# Data set includes only internet users
+mosaic( ~ employ + facebookFuture, data = working,
+        labeling_args = list(set_varnames = c(employ = "", facebookFuture = "Facebook Expected Time in the Next Year")),
+        highlighting = "facebookFuture",
+        highlighting_fill = c("blue","green","purple"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Employ by Former Facebook User 
+# Data set includes only internet users
+mosaic( ~ employ + formerFacebookUser, data = working,
+        labeling_args = list(set_varnames = c(employ = "", formerFacebookUser = "Former Facebook Users")),
+        highlighting = "formerFacebookUser",
+        highlighting_fill = c("blue","green"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Employ by Possible Future Facebook User 
+# Data set includes only internet users
+mosaic( ~ employ + futureFacebookUser, data = working,
+        labeling_args = list(set_varnames = c(employ = "", futureFacebookUser = "Possible Future Facebook Users")),
+        highlighting = "futureFacebookUser",
+        highlighting_fill = c("blue","green"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Employ by Took a Facebook Break 
+# Data set includes only internet users
+mosaic( ~ employ + facebookBreak, data = working,
+        labeling_args = list(set_varnames = c(employ = "", facebookBreak = "Took a Facebook Break")),
+        highlighting = "facebookBreak",
+        highlighting_fill = c("blue","green"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+
+# Categorical Variable: Income
+#
+# Income by Internet Users
+# Data set includes all respondents
+mosaic( ~ income + internetUser, data = facebookWorking,
+        labeling_args = list(set_varnames = c(income = "", internetUser = "Internet Usage")),
+        highlighting = "internetUser",
+        highlighting_fill = c("cornsilk","violet"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Income by Facebook Users
+# Data set includes only internet users
+pdf(file = "GAL_RelationshipBetweenIncomeandFacebookUsage.pdf", width = 11, height = 8.5)
+mosaic( ~ income + facebookUser, data = working,
+        labeling_args = list(set_varnames = c(income = "", facebookUser = "Facebook Usage")),
+        highlighting = "facebookUser",
+        highlighting_fill = c("cornsilk","violet"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+dev.off()
+
+# Income By Facebook Importance
+# Data set includes only internet users
+mosaic( ~ income + facebookImpt, data = working,
+        labeling_args = list(set_varnames = c(income = "", facebookImpt = "Facebook Usage")),
+        highlighting = "facebookImpt",
+        highlighting_fill = c("blue","green","purple","gray"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Income by Facebook Time Spent in the Past Year
+# Data set includes only internet users
+mosaic( ~ income + facebookPast, data = working,
+        labeling_args = list(set_varnames = c(income = "", facebookPast = "Facebook Time in the Last Year")),
+        highlighting = "facebookPast",
+        highlighting_fill = c("blue","green","purple","gray"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Income by Facebook Time Projected for Next Year
+# Data set includes only internet users
+mosaic( ~ income + facebookFuture, data = working,
+        labeling_args = list(set_varnames = c(income = "", facebookFuture = "Facebook Expected Time in the Next Year")),
+        highlighting = "facebookFuture",
+        highlighting_fill = c("blue","green","purple"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Income by Former Facebook User 
+# Data set includes only internet users
+mosaic( ~ income + formerFacebookUser, data = working,
+        labeling_args = list(set_varnames = c(income = "", formerFacebookUser = "Former Facebook Users")),
+        highlighting = "formerFacebookUser",
+        highlighting_fill = c("blue","green"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Income by Possible Future Facebook User 
+# Data set includes only internet users
+mosaic( ~ income + futureFacebookUser, data = working,
+        labeling_args = list(set_varnames = c(income = "", futureFacebookUser = "Possible Future Facebook Users")),
+        highlighting = "futureFacebookUser",
+        highlighting_fill = c("blue","green"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Income by Took a Facebook Break 
+# Data set includes only internet users
+mosaic( ~ income + facebookBreak, data = working,
+        labeling_args = list(set_varnames = c(income = "", facebookBreak = "Took a Facebook Break")),
+        highlighting = "facebookBreak",
+        highlighting_fill = c("blue","green"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+
+# Categorical Variable: Race
+#
+# Race by Internet Users
+# Data set includes all respondents
+mosaic( ~ race + internetUser, data = facebookWorking,
+        labeling_args = list(set_varnames = c(race = "", internetUser = "Internet Usage")),
+        highlighting = "internetUser",
+        highlighting_fill = c("cornsilk","violet"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Race by Facebook Users
+# Data set includes only internet users
+mosaic( ~ race + facebookUser, data = working,
+        labeling_args = list(set_varnames = c(race = "", facebookUser = "Facebook Usage")),
+        highlighting = "facebookUser",
+        highlighting_fill = c("cornsilk","violet"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Race By Facebook Importance
+# Data set includes only internet users
+mosaic( ~ race + facebookImpt, data = working,
+        labeling_args = list(set_varnames = c(race = "", facebookImpt = "Facebook Usage")),
+        highlighting = "facebookImpt",
+        highlighting_fill = c("blue","green","purple","gray"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Race by Facebook Time Spent in the Past Year
+# Data set includes only internet users
+mosaic( ~ race + facebookPast, data = working,
+        labeling_args = list(set_varnames = c(race = "", facebookPast = "Facebook Time in the Last Year")),
+        highlighting = "facebookPast",
+        highlighting_fill = c("blue","green","purple","gray"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Race by Facebook Time Projected for Next Year
+# Data set includes only internet users
+mosaic( ~ race + facebookFuture, data = working,
+        labeling_args = list(set_varnames = c(race = "", facebookFuture = "Facebook Expected Time in the Next Year")),
+        highlighting = "facebookFuture",
+        highlighting_fill = c("blue","green","purple"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Race by Former Facebook User
+# Data set includes only internet users
+mosaic( ~ race + formerFacebookUser, data = working,
+        labeling_args = list(set_varnames = c(race = "", formerFacebookUser = "Former Facebook Users")),
+        highlighting = "formerFacebookUser",
+        highlighting_fill = c("blue","green"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Race by Possible Future Facebook User 
+# Data set includes only internet users
+mosaic( ~ race + futureFacebookUser, data = working,
+        labeling_args = list(set_varnames = c(race = "", futureFacebookUser = "Possible Future Facebook Users")),
+        highlighting = "futureFacebookUser",
+        highlighting_fill = c("blue","green"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Race by Took a Facebook Break 
+# Data set includes only internet users
+mosaic( ~ race + facebookBreak, data = working,
+        labeling_args = list(set_varnames = c(race = "", facebookBreak = "Took a Facebook Break")),
+        highlighting = "facebookBreak",
+        highlighting_fill = c("blue","green"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+
+# Categorical Variable: Parent of a Child Under 18
+#
+# Parent by Internet Users
+# Data set includes all respondents
+mosaic( ~ parent + internetUser, data = facebookWorking,
+        labeling_args = list(set_varnames = c(parent = "", internetUser = "Internet Usage")),
+        highlighting = "internetUser",
+        highlighting_fill = c("cornsilk","violet"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Parent by Facebook Users
+# Data set includes only internet users
+mosaic( ~ parent + facebookUser, data = working,
+        labeling_args = list(set_varnames = c(parent = "", facebookUser = "Facebook Usage")),
+        highlighting = "facebookUser",
+        highlighting_fill = c("cornsilk","violet"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Parent By Facebook Importance
+# Data set includes only internet users
+mosaic( ~ parent + facebookImpt, data = working,
+        labeling_args = list(set_varnames = c(parent = "", facebookImpt = "Facebook Usage")),
+        highlighting = "facebookImpt",
+        highlighting_fill = c("blue","green","purple","gray"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Parent by Facebook Time Spent in the Past Year
+# Data set includes only internet users
+mosaic( ~ parent + facebookPast, data = working,
+        labeling_args = list(set_varnames = c(parent = "", facebookPast = "Facebook Time in the Last Year")),
+        highlighting = "facebookPast",
+        highlighting_fill = c("blue","green","purple","gray"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Parent by Facebook Time Projected for Next Year
+# Data set includes only internet users
+mosaic( ~ parent + facebookFuture, data = working,
+        labeling_args = list(set_varnames = c(parent = "", facebookFuture = "Facebook Expected Time in the Next Year")),
+        highlighting = "facebookFuture",
+        highlighting_fill = c("blue","green","purple"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Parent by Former Facebook User
+# Data set includes only internet users
+mosaic( ~ parent + formerFacebookUser, data = working,
+        labeling_args = list(set_varnames = c(parent = "", formerFacebookUser = "Former Facebook Users")),
+        highlighting = "formerFacebookUser",
+        highlighting_fill = c("blue","green"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Parent by Possible Future Facebook User 
+# Data set includes only internet users
+mosaic( ~ parent + futureFacebookUser, data = working,
+        labeling_args = list(set_varnames = c(parent = "", futureFacebookUser = "Possible Future Facebook Users")),
+        highlighting = "futureFacebookUser",
+        highlighting_fill = c("blue","green"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Parent by Took a Facebook Break 
+# Data set includes only internet users
+mosaic( ~ parent + facebookBreak, data = working,
+        labeling_args = list(set_varnames = c(parent = "", facebookBreak = "Took a Facebook Break")),
+        highlighting = "facebookBreak",
+        highlighting_fill = c("blue","green"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+
+# Categorical Variable: Education
+#
+# Education by Internet Users
+# Data set includes all respondents
+mosaic( ~ edu + internetUser, data = facebookWorking,
+        labeling_args = list(set_varnames = c(edu = "", internetUser = "Internet Usage")),
+        highlighting = "internetUser",
+        highlighting_fill = c("cornsilk","violet"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Education by Facebook Users
+# Data set includes only internet users
+mosaic( ~ edu + facebookUser, data = working,
+        labeling_args = list(set_varnames = c(edu = "", facebookUser = "Facebook Usage")),
+        highlighting = "facebookUser",
+        highlighting_fill = c("cornsilk","violet"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Education By Facebook Importance
+# Data set includes only internet users
+mosaic( ~ edu + facebookImpt, data = working,
+        labeling_args = list(set_varnames = c(edu = "", facebookImpt = "Facebook Usage")),
+        highlighting = "facebookImpt",
+        highlighting_fill = c("blue","green","purple","gray"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Education by Facebook Time Spent in the Past Year
+# Data set includes only internet users
+mosaic( ~ edu + facebookPast, data = working,
+        labeling_args = list(set_varnames = c(edu = "", facebookPast = "Facebook Time in the Last Year")),
+        highlighting = "facebookPast",
+        highlighting_fill = c("blue","green","purple","gray"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Education by Facebook Time Projected for Next Year
+# Data set includes only internet users
+pdf(file = "GAL_RelationshipBetweenEducationProjectedTime.pdf", width = 11, height = 8.5)
+mosaic( ~ edu + facebookFuture, data = working,
+        labeling_args = list(set_varnames = c(edu = "", facebookFuture = "Facebook Expected Time in the Next Year")),
+        highlighting = "facebookFuture",
+        highlighting_fill = c("blue","green","purple"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+dev.off()
+
+# Education by Former Facebook USer
+# Data set includes only internet users
+mosaic( ~ edu + formerFacebookUser, data = working,
+        labeling_args = list(set_varnames = c(edu = "", formerFacebookUser = "Former Facebook Users")),
+        highlighting = "formerFacebookUser",
+        highlighting_fill = c("blue","green"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Education by Possible Future Facebook User 
+# Data set includes only internet users
+mosaic( ~ edu + futureFacebookUser, data = working,
+        labeling_args = list(set_varnames = c(edu = "", futureFacebookUser = "Possible Future Facebook Users")),
+        highlighting = "futureFacebookUser",
+        highlighting_fill = c("blue","green"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Education by Took a Facebook Break 
+# Data set includes only internet users
+mosaic( ~ edu + facebookBreak, data = working,
+        labeling_args = list(set_varnames = c(edu = "", facebookBreak = "Took a Facebook Break")),
+        highlighting = "facebookBreak",
+        highlighting_fill = c("blue","green"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+
+
+# Relationships between Facebook Variables
+# Rather than graph each of them, with each other, I picked several that I thought would be relevant.
+# Some are obvious, like Facebook User vs. Former Facebook User
+
+# Relationship between Facebook Importance and Whether a Break Was Taken
+# Data set includes only internet users
+mosaic( ~ facebookImpt + facebookBreak, data = working,
+        labeling_args = list(set_varnames = c(facebookImpt = "", facebookBreak = "Took a Facebook Break")),
+        highlighting = "facebookBreak",
+        highlighting_fill = c("blue","green"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Relationship between Facebook Importance and Whether a Break Was Taken
+# Data set includes only internet users
+mosaic( ~ facebookBreak + facebookImpt, data = working,
+        labeling_args = list(set_varnames = c(facebookBreak = "", facebookImpt = "Took a Facebook Break")),
+        highlighting = "facebookImpt",
+        highlighting_fill = c("blue","green", "purple","gray"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+# Relationship between Facebook Importance and Amount of Time Spent on It
+# Data set includes only internet users
+mosaic( ~ facebookImpt + facebookPast, data = working,
+        labeling_args = list(set_varnames = c(facebookImpt = "", facebookPast = "Facebook Time in the Last Year")),
+        highlighting = "facebookPast",
+        highlighting_fill = c("blue","green","purple","gray"),
+        rot_labels = c(left = 0, top = 0),
+        pos_labels = c("center","center"),
+        offset_labels = c(0.0,0.6))
+
+
+
+# EDA for free-form answers
+#
+# Set text data fields as character
+facebook$stopfacebook <- as.character(facebook$pial4vb)
+facebook$breakfacebook <- as.character(facebook$pial7vb)
+
+# Remove Nulls
+facebookTextStop <- facebook[!(facebook$stopfacebook == " "),]
+facebookBreak <- facebook[!(facebook$breakfacebook == " "),]
+
+# Print free-form answers for review
+print(facebookTextStop$stopfacebook)
+print(facebookBreak$breakfacebook)
